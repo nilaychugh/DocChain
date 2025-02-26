@@ -3,6 +3,7 @@ import { Shield, Link, Upload, Share2, FileCheck, Loader2, Download, Eye } from 
 import axios from 'axios';
 import Web3 from 'web3';
 import ContractABI from './DocumentRegistry.json';
+import PropTypes from 'prop-types';
 
 const styles = {
     pageBackground: {
@@ -210,29 +211,27 @@ const styles = {
   };
   
 
-export default function DocChain() {
+export default function VerificationSharing({ web3: providedWeb3, contract: providedContract, walletAddress: providedWalletAddress, contractAddress: providedContractAddress }) {
   const [activeTab, setActiveTab] = useState('verify');
   const [file, setFile] = useState(null);
-  const [walletAddress, setWalletAddress] = useState('');
+  const [walletAddress, setWalletAddress] = useState(providedWalletAddress || '');
   const [uploading, setUploading] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
   const [ipfsHash, setIpfsHash] = useState('');
   const [recipientAddress, setRecipientAddress] = useState('');
   const [sharing, setSharing] = useState(false);
-  const [web3, setWeb3] = useState(null);
-  const [contract, setContract] = useState(null);
+  const [web3, setWeb3] = useState(providedWeb3);
+  const [contract, setContract] = useState(providedContract);
   const [sharedDocuments, setSharedDocuments] = useState([]);
   const [retrieving, setRetrieving] = useState(false);
   const [viewing, setViewing] = useState(false);
-
-  const contractAddress = '0x696462745a549906AD3F979926cC086e1775583A';
 
   useEffect(() => {
     const initWeb3AndContract = async () => {
       if (window.ethereum) {
         try {
           const web3Instance = new Web3(window.ethereum);
-          const contractInstance = new web3Instance.eth.Contract(ContractABI, contractAddress);
+          const contractInstance = new web3Instance.eth.Contract(ContractABI, providedContractAddress);
 
           setWeb3(web3Instance);
           setContract(contractInstance);
@@ -244,14 +243,15 @@ export default function DocChain() {
       }
     };
 
-    initWeb3AndContract();
-  }, []);
+    if (!providedWeb3 || !providedContract) {
+      initWeb3AndContract();
+    }
+  }, [providedWeb3, providedContract, providedContractAddress]);
 
   const connectWallet = async () => {
     if (window.ethereum) {
       try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setWalletAddress(accounts[0]);
       } catch (error) {
         console.error('Error connecting to MetaMask:', error);
       }
@@ -544,3 +544,10 @@ const handleViewDocument = async () => {
     </>
   );
 }
+
+VerificationSharing.propTypes = {
+  web3: PropTypes.object,
+  contract: PropTypes.object,
+  walletAddress: PropTypes.string,
+  contractAddress: PropTypes.string
+};

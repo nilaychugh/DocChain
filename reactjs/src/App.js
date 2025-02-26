@@ -7,43 +7,108 @@ import VerificationSharing from './VerificationSharing';
 import RetrieveDocuments from './RetrieveDocument';
 import { Shield, Download } from 'lucide-react';
 import { styles } from './styles/styles';
-import { useAnimations } from './hooks/useAnimations';
 
 const App = () => {
   const [web3, setWeb3] = useState(null);
   const [contract, setContract] = useState(null);
   const [walletAddress, setWalletAddress] = useState('');
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const contractAddress = '0x696462745a549906AD3F979926cC086e1775583A';
-
-  // Initialize animations
-  useAnimations();
 
   useEffect(() => {
     const initWeb3AndContract = async () => {
-      if (window.ethereum) {
-        try {
+      setIsLoading(true);
+      try {
+        // Check if Web3 is injected by MetaMask
+        if (typeof window.ethereum !== 'undefined') {
+          // Create Web3 instance
           const web3Instance = new Web3(window.ethereum);
-          const contractInstance = new web3Instance.eth.Contract(ContractABI, contractAddress);
-
           setWeb3(web3Instance);
-          setContract(contractInstance);
 
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          setWalletAddress(accounts[0]);
-
-          window.ethereum.on('accountsChanged', (accounts) => {
+          try {
+            // Request account access
+            const accounts = await window.ethereum.request({
+              method: 'eth_requestAccounts'
+            });
             setWalletAddress(accounts[0]);
+
+            // Create contract instance
+            if (ContractABI && ContractABI.abi) {
+              const contractInstance = new web3Instance.eth.Contract(
+                ContractABI.abi,
+                contractAddress
+              );
+              setContract(contractInstance);
+            } else {
+              throw new Error('Contract ABI is not properly loaded');
+            }
+          } catch (err) {
+            throw new Error(`Failed to initialize contract: ${err.message}`);
+          }
+
+          // Setup event listeners
+          window.ethereum.on('accountsChanged', (accounts) => {
+            setWalletAddress(accounts[0] || '');
           });
-        } catch (error) {
-          console.error('Error initializing Web3 or contract:', error);
+
+          window.ethereum.on('chainChanged', () => {
+            window.location.reload();
+          });
+
+        } else {
+          throw new Error('Please install MetaMask to use this application');
         }
-      } else {
-        alert('MetaMask is not detected. Please install it to use this application.');
+      } catch (error) {
+        console.error('Initialization Error:', error);
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     initWeb3AndContract();
+
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', () => {});
+        window.ethereum.removeListener('chainChanged', () => {});
+      }
+    };
   }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <Typography>Loading Web3 environment...</Typography>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <Typography color="error">Error: {error}</Typography>
+      </div>
+    );
+  }
+
+  if (!web3 || !contract) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <Typography>
+          Web3 or Contract not initialized. Please check your wallet connection.
+        </Typography>
+      </div>
+    );
+  }
+
+  const sharedProps = {
+    web3: web3,
+    contract: contract,
+    walletAddress: walletAddress,
+    contractAddress: contractAddress
+  };
 
   return (
     <Router>
@@ -66,8 +131,14 @@ const App = () => {
           </nav>
         </header>
         <Routes>
-          <Route path="/" element={<VerificationSharing />} />
-          <Route path="/retrieve" element={<RetrieveDocuments />} />
+          <Route 
+            path="/" 
+            element={<VerificationSharing {...sharedProps} />} 
+          />
+          <Route 
+            path="/retrieve" 
+            element={<RetrieveDocuments {...sharedProps} />} 
+          />
         </Routes>
       </div>
     </Router>

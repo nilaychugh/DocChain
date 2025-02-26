@@ -1,7 +1,4 @@
 require('dotenv').config(); // Load environment variables
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 const cors = require('cors');
 const express = require('express');
@@ -72,7 +69,6 @@ if (privateKey) {
   console.error('Private key is missing in the environment variables.');
   return res.status(500).json({ error: 'Server misconfiguration: Missing private key' });
 }
-
 
 // Routes
 
@@ -221,6 +217,10 @@ const retrieveDocumentFromIPFS = async (ipfsHash) => {
       alert('Failed to retrieve document from IPFS. Check console for details.');
   }
 };
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 
 
